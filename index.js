@@ -16,14 +16,20 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 
 
-const db = new pg.Client({
-  user : "postgres",
-  host : "localhost",
-  database : "permalist", //example database name
-  password : "$Bg>>@;7Y:.5/&:v",
-  port : 5432,
-  database_url : "" //example database name
-});
+const db = new pg.Client(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+      }
+    : {
+        user: process.env.PGUSER || "postgres",
+        host: process.env.PGHOST || "localhost",
+        database: process.env.PGDATABASE || "permalist",
+        password: process.env.PGPASSWORD,
+        port: Number(process.env.PGPORT || 5432)
+      }
+);
 
 try {
   await db.connect();

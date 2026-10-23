@@ -89,25 +89,24 @@ async function initDatabase() {
   const userCount = await db.query("SELECT COUNT(*) FROM users");
   if (parseInt(userCount.rows[0].count) === 0) {
     const userResult = await db.query(
-      "INSERT INTO users (name, color) VALUES ('Filipe', 'blue'), ('Carlos', 'green') RETURNING id, name"
+      "INSERT INTO users (name, color) VALUES ('Filipe', 'blue') RETURNING id, name"
     );
 
     const filipeId = userResult.rows[0].id;
-    const carlosId = userResult.rows[1].id;
 
     await db.query(
       "INSERT INTO day (title, date, id_user) VALUES ('Passeio do cão', '25/06/2026', $1), ('Fazer compras', '25/06/2026', $2)",
-      [carlosId, filipeId]
+      [filipeId]
     );
 
     await db.query(
       "INSERT INTO months (title, date, id_user) VALUES ('Pagar Seguro carro', '24/06/2026', $1), ('Pagar imposto de selo', '22/06/2026', $2)",
-      [carlosId, filipeId]
+      [ filipeId]
     );
 
     await db.query(
       "INSERT INTO weeks (title, date, id_user) VALUES ('ver impostos pagar', '26/06/2026', $1), ('ver comida de cão', '30/06/2026', $2)",
-      [carlosId, filipeId]
+      [ filipeId]
     );
 
     console.log("Database initialized with default tables and data.");

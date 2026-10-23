@@ -14,7 +14,7 @@
       </form>
 
       <form class="add-user" action="/new" method="post" >
-          <button class="add" type="submit" name="add" value="new" > +</button>
+          <button class="add" type="submit" name="add" value="new"  > +</button>
       </form>
   </div>
 
@@ -29,7 +29,7 @@
       <div class="item" >
         <form action="/delete" method="post">
           <input type="hidden" name="list" value="Day">
-          <input type="checkbox" onchange="this.form.submit()" name="deleteItemIdDay" value="<%= item.id %>">
+          <input type="checkbox" onchange="this.form.submit()" name="deleteItemIdDay" value="<%= item.id %>" aria-label="Complete day item">
         </form>
 
         
@@ -41,7 +41,7 @@
           <input type="hidden" name="updatedItemIdDay" value="<%= item.id %>">
           <input type="hidden" name="list" value="Day">
           <input id="input-day-<%=item.id%>" type="text" name="updatedItemTitleDay" value="<%= item.title %>" autocomplete="off"
-            autofocus="true" hidden="true" />
+            autofocus="true" hidden="true" aria-label="Edit day item" />
           <button id="done-day-<%=item.id%>" class="edit" type="submit" hidden><img class="icon"
               src="/assets/icons/check-solid.svg" alt="tick image"></button>
         </form>
@@ -51,7 +51,7 @@
       <% } %>
 
         <form class="item" action="/add" method="post">
-          <input type="text" name="newItemDay" placeholder="New Item" autocomplete="off" autofocus="true" />
+          <input type="text" name="newItemDay" placeholder="Add a new day item" aria-label="New day item" autocomplete="off" autofocus="true"  required />
           <button class="add" type="submit" name="list" value="Day" >+</button>
         </form>
   </div>
@@ -66,7 +66,7 @@
       <div class="item">
         <form action="/delete" method="post">
           <input type="hidden" name="list" value="Week">
-          <input type="checkbox" onchange="this.form.submit()" name="deleteItemIdWeek" value="<%= item.id %>">
+          <input type="checkbox" onchange="this.form.submit()" name="deleteItemIdWeek" value="<%= item.id %>" aria-label="Complete week item">
         </form>
 
         
@@ -77,7 +77,7 @@
               <input type="hidden" name="updatedItemIdWeek" value="<%= item.id %>">
               <input type="hidden" name="list" value="Week">
               <input id="input-week-<%=item.id%>" type="text" name="updatedItemTitleWeek" value="<%= item.title %>" autocomplete="off"
-                autofocus="true" hidden="true" />
+                autofocus="true" hidden="true" aria-label="Edit week item" />
               <button id="done-week-<%=item.id%>" class="edit" type="submit" hidden><img class="icon"
                   src="/assets/icons/check-solid.svg" alt="tick image"></button>
             </form>
@@ -87,7 +87,7 @@
           <% } %>
 
             <form class="item" action="/add" method="post">
-              <input type="text" name="newItemWeek" placeholder="New Item" autocomplete="off" autofocus="true" />
+              <input type="text" name="newItemWeek" placeholder="Add a new week item" aria-label="New week item" autocomplete="off" autofocus="true"  required />
               <button class="add" type="submit" name="list" value="Week" >+</button>
             </form>
   </div>
@@ -101,7 +101,7 @@
       <div class="item">
         <form action="/delete" method="post">
           <input type="hidden" name="list" value="Month">
-          <input type="checkbox" onchange="this.form.submit()" name="deleteItemIdMonth" value="<%= item.id %>">
+          <input type="checkbox" onchange="this.form.submit()" name="deleteItemIdMonth" value="<%= item.id %>" aria-label="Complete month item">
         </form>
         <p id="title-month-<%=item.id%>">
           <%= item.title %>
@@ -110,7 +110,7 @@
           <input type="hidden" name="updatedItemIdMonth" value="<%= item.id %>">
           <input type="hidden" name="list" value="Month">
           <input id="input-month-<%=item.id%>" type="text" name="updatedItemTitleMonth" value="<%= item.title %>" autocomplete="off"
-            autofocus="true" hidden="true" />
+            autofocus="true" hidden="true" aria-label="Edit month item" />
           <button id="done-month-<%=item.id%>" class="edit" type="submit" hidden><img class="icon"
               src="/assets/icons/check-solid.svg" alt="tick image"></button>
         </form>
@@ -119,7 +119,7 @@
       </div>
       <% } %>
         <form class="item" action="/add" method="post">
-          <input type="text" name="newItemMonth" placeholder="New Item" autocomplete="off" autofocus="true" />
+          <input type="text" name="newItemMonth" placeholder="Add a new month item" aria-label="New month item" autocomplete="off" autofocus="true"  required />
           <button class="add" type="submit" name="list" value="Month" >+</button>
         </form>
   </div>

@@ -11,8 +11,8 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 //  TODO: For local development, you can uncomment the lines
 //  below and comment out the lines above
-//const PORT = process.env.PORT || 3000;
-//const HOST = process.env.HOST || 'localhost';
+//  const PORT = process.env.PORT || 3000;
+//  const HOST = process.env.HOST || 'localhost';
 
 
 
@@ -212,10 +212,13 @@ function validateTable(name) {
 app.post("/user", async (req, res) => {
   if (req.body.add === "new") {
     res.render("new.ejs", { error: null });
-  }else {
-    const parsed = req.body.add ? parseInt(req.body.add) : null;
-    if (!isNaN(parsed)) {
-      currentUserId = parsed;
+  } else {
+    const selectedUser = req.body.user || req.body.add;
+    if (selectedUser) {
+      const parsed = parseInt(selectedUser, 10);
+      if (!isNaN(parsed)) {
+        currentUserId = parsed;
+      }
     }
     res.redirect("/");
   }  
@@ -363,7 +366,16 @@ app.post("/delete", async (req, res) => {
   }
 });
   
+app.get("/new", (req, res) => {
+  res.render("new.ejs", { error: null });
+});
+
 app.post("/new", async (req, res) => {
+  if (req.body.add === "new") {
+    res.render("new.ejs", { error: null });
+    return;
+  }
+
   if (!req.body.name || !req.body.color) {
     res.render("new.ejs", {
       error: "Please provide both name and color.",

@@ -16,16 +16,28 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 
 
-if (process.env.DATABASE_URL) {
-  console.log("Connecting using DATABASE_URL...");
+const dbUrlKey = Object.keys(process.env).find(k => 
+  /^(database_url|internal_database_url|external_database_url|postgres_url|db_url)$/i.test(k.trim())
+);
+const connectionString = dbUrlKey ? process.env[dbUrlKey]?.trim() : null;
+
+const relatedKeys = Object.keys(process.env).filter(k => 
+  /data|db|postgres|pg|url/i.test(k)
+);
+console.log("Database-related environment variables detected:", relatedKeys);
+
+if (connectionString) {
+  console.log(`Connecting using ${dbUrlKey}...`);
+} else if (process.env.PGHOST && process.env.PGHOST !== "localhost") {
+  console.log(`Connecting using PGHOST (${process.env.PGHOST})...`);
 } else {
-  console.log("Warning: DATABASE_URL is not set, trying localhost...");
+  console.log("Warning: No database connection URL found in environment variables. Falling back to localhost...");
 }
 
 const db = new pg.Client(
-  process.env.DATABASE_URL
+  connectionString
     ? {
-        connectionString: process.env.DATABASE_URL,
+        connectionString: connectionString,
         ssl: { rejectUnauthorized: false }
       }
     : {
@@ -33,7 +45,8 @@ const db = new pg.Client(
         host: process.env.PGHOST || "localhost",
         database: process.env.PGDATABASE || "permalist",
         password: process.env.PGPASSWORD || "$Bg>>@;7Y:.5/&:v",
-        port: Number(process.env.PGPORT || 5432)
+        port: Number(process.env.PGPORT || 5432),
+        ssl: process.env.PGHOST && process.env.PGHOST !== "localhost" ? { rejectUnauthorized: false } : false
       }
 );
 

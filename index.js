@@ -16,6 +16,12 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 
 
+if (process.env.DATABASE_URL) {
+  console.log("Connecting using DATABASE_URL...");
+} else {
+  console.log("Warning: DATABASE_URL is not set, trying localhost...");
+}
+
 const db = new pg.Client(
   process.env.DATABASE_URL
     ? {
@@ -26,14 +32,79 @@ const db = new pg.Client(
         user: process.env.PGUSER || "postgres",
         host: process.env.PGHOST || "localhost",
         database: process.env.PGDATABASE || "permalist",
-        password: process.env.PGPASSWORD,
+        password: process.env.PGPASSWORD || "$Bg>>@;7Y:.5/&:v",
         port: Number(process.env.PGPORT || 5432)
       }
 );
 
+async function initDatabase() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      color VARCHAR(55) NOT NULL
+    );
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS day (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(100) NOT NULL,
+      date VARCHAR(55) NOT NULL,
+      id_user INTEGER REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS weeks (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(100) NOT NULL,
+      date VARCHAR(55) NOT NULL,
+      id_user INTEGER REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS months (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(100) NOT NULL,
+      date VARCHAR(55) NOT NULL,
+      id_user INTEGER REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  const userCount = await db.query("SELECT COUNT(*) FROM users");
+  if (parseInt(userCount.rows[0].count) === 0) {
+    const userResult = await db.query(
+      "INSERT INTO users (name, color) VALUES ('Filipe', 'blue'), ('Carlos', 'green') RETURNING id, name"
+    );
+
+    const filipeId = userResult.rows[0].id;
+    const carlosId = userResult.rows[1].id;
+
+    await db.query(
+      "INSERT INTO day (title, date, id_user) VALUES ('Passeio do cão', '25/06/2026', $1), ('Fazer compras', '25/06/2026', $2)",
+      [carlosId, filipeId]
+    );
+
+    await db.query(
+      "INSERT INTO months (title, date, id_user) VALUES ('Pagar Seguro carro', '24/06/2026', $1), ('Pagar imposto de selo', '22/06/2026', $2)",
+      [carlosId, filipeId]
+    );
+
+    await db.query(
+      "INSERT INTO weeks (title, date, id_user) VALUES ('ver impostos pagar', '26/06/2026', $1), ('ver comida de cão', '30/06/2026', $2)",
+      [carlosId, filipeId]
+    );
+
+    console.log("Database initialized with default tables and data.");
+  }
+}
+
 try {
   await db.connect();
   console.log("Database connected");
+  await initDatabase();
 } catch (error) {
   console.error("Database connection failed:", error);
   process.exit(1);

@@ -115,11 +115,17 @@ async function initDatabase() {
 }
 
 try {
+  console.log(`Connecting to database at host: "${db.host}" port: ${db.port}...`);
   await db.connect();
-  console.log("Database connected");
+  console.log("Database connected successfully");
   await initDatabase();
 } catch (error) {
-  console.error("Database connection failed:", error);
+  console.error("Database connection failed:", error.message || error);
+  if (db.host === "localhost" || db.host === "127.0.0.1") {
+    console.error("-> The app is trying to connect to localhost. Please set the DATABASE_URL environment variable in your Render Web Service settings.");
+  } else {
+    console.error(`-> Failed to connect to ${db.host}:${db.port}. If using the Internal Database URL, verify both services are in the same Render region, or try using the External Database URL instead.`);
+  }
   process.exit(1);
 }
 

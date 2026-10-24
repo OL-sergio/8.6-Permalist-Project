@@ -27,10 +27,10 @@ const startup = (opts: Record<string, string>): Buffer => {
 
   writer.addCString('client_encoding').addCString('UTF8')
 
-  var bodyBuffer = writer.addCString('').flush()
+  const bodyBuffer = writer.addCString('').flush()
   // this message is sent without a code
 
-  var length = bodyBuffer.length + 4
+  const length = bodyBuffer.length + 4
 
   return new Writer().addInt32(length).add(bodyBuffer).flush()
 }
@@ -48,7 +48,7 @@ const password = (password: string): Buffer => {
 
 const sendSASLInitialResponseMessage = function (mechanism: string, initialResponse: string): Buffer {
   // 0x70 = 'p'
-  writer.addCString(mechanism).addInt32(Buffer.byteLength(initialResponse)).addString(initialResponse)
+  writer.addCString(mechanism).addInt32PrefixedString(initialResponse)
 
   return writer.flush(code.startup)
 }
@@ -78,23 +78,21 @@ const parse = (query: ParseOpts): Buffer => {
   // normalize missing query names to allow for null
   const name = query.name || ''
   if (name.length > 63) {
-    /* eslint-disable no-console */
     console.error('Warning! Postgres only supports 63 characters for query names.')
     console.error('You supplied %s (%s)', name, name.length)
     console.error('This can cause conflicts and silent errors executing queries')
-    /* eslint-enable no-console */
   }
 
   const types = query.types || emptyArray
 
-  var len = types.length
+  const len = types.length
 
-  var buffer = writer
+  const buffer = writer
     .addCString(name) // name of query
     .addCString(query.text) // actual query text
     .addInt16(len)
 
-  for (var i = 0; i < len; i++) {
+  for (let i = 0; i < len; i++) {
     buffer.addInt32(types[i])
   }
 
@@ -112,34 +110,36 @@ type BindOpts = {
   valueMapper?: ValueMapper
 }
 
-const paramWriter = new Writer()
-
 // make this a const enum so typescript will inline the value
 const enum ParamType {
   STRING = 0,
   BINARY = 1,
 }
 
-const writeValues = function (values: any[], valueMapper?: ValueMapper): void {
-  for (let i = 0; i < values.length; i++) {
+const writeValues = function (values: any[], valueMapper: ValueMapper | undefined, formatsOffset: number): void {
+  const len = values.length
+  for (let i = 0; i < len; i++) {
     const mappedVal = valueMapper ? valueMapper(values[i], i) : values[i]
+    let formatByte = ParamType.STRING
+
     if (mappedVal == null) {
-      // add the param type (string) to the writer
-      writer.addInt16(ParamType.STRING)
-      // write -1 to the param writer to indicate null
-      paramWriter.addInt32(-1)
+      // write -1 to indicate null
+      writer.addInt32(-1)
     } else if (mappedVal instanceof Buffer) {
-      // add the param type (binary) to the writer
-      writer.addInt16(ParamType.BINARY)
+      formatByte = ParamType.BINARY
+
       // add the buffer to the param writer
-      paramWriter.addInt32(mappedVal.length)
-      paramWriter.add(mappedVal)
+      writer.addInt32(mappedVal.length)
+      writer.add(mappedVal)
     } else {
-      // add the param type (string) to the writer
-      writer.addInt16(ParamType.STRING)
-      paramWriter.addInt32(Buffer.byteLength(mappedVal))
-      paramWriter.addString(mappedVal)
+      // length prefix + UTF-8 bytes in one pass (Buffer.byteLength computed once)
+      writer.addInt32PrefixedString(mappedVal)
     }
+
+    // beware: `writer` operations can replace `writer.buffer` with a new buffer
+    const buf = writer.buffer
+    buf[formatsOffset++] = 0
+    buf[formatsOffset++] = formatByte
   }
 }
 
@@ -152,13 +152,25 @@ const bind = (config: BindOpts = {}): Buffer => {
   const len = values.length
 
   writer.addCString(portal).addCString(statement)
+
+  // number of parameter format codes
   writer.addInt16(len)
 
-  writeValues(values, config.valueMapper)
+  // space for those codes, filled by `writeValues`
+  const formatsOffset = writer.reserveUnsafe(len * 2)
 
+  // number of parameter values
   writer.addInt16(len)
-  writer.add(paramWriter.flush())
 
+  try {
+    writeValues(values, config.valueMapper, formatsOffset)
+  } catch (err) {
+    writer.clear()
+    throw err
+  }
+
+  // all results use the same format code
+  writer.addInt16(1)
   // format code
   writer.addInt16(binary ? ParamType.BINARY : ParamType.STRING)
   return writer.flush(code.bind)

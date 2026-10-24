@@ -1,18 +1,21 @@
 import express from "express";
-import bodyParser from "body-parser";
+import cookieParser from "cookie-parser";
 import pg from "pg";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 
 // TODO: render.com provides the PORT and HOST environment variables,
 // so we need to use those instead of hardcoding them
-const PORT = process.env.PORT || 10000;
-const HOST = process.env.HOST || '0.0.0.0';
+//  const PORT = process.env.PORT || 10000;
+//  const HOST = process.env.HOST || '0.0.0.0';
 
 //  TODO: For local development, you can uncomment the lines
 //  below and comment out the lines above
-//  const PORT = process.env.PORT || 3000;
-//  const HOST = process.env.HOST || 'localhost';
+  const PORT = process.env.PORT || 3000;
+  const HOST = process.env.HOST || 'localhost';
 
 
 
@@ -44,72 +47,86 @@ const db = new pg.Client(
         user: process.env.PGUSER || "postgres",
         host: process.env.PGHOST || "localhost",
         database: process.env.PGDATABASE || "permalist",
-        password: process.env.PGPASSWORD || "$Bg>>@;7Y:.5/&:v",
+        password: process.env.PGPASSWORD || "",
         port: Number(process.env.PGPORT || 5432),
         ssl: process.env.PGHOST && process.env.PGHOST !== "localhost" ? { rejectUnauthorized: false } : false
       }
 );
 
+if (!connectionString && !process.env.PGPASSWORD) {
+  console.error("Error: Database password is required. Please set PGPASSWORD or DATABASE_URL environment variable.");
+  process.exit(1);
+}
+
 async function initDatabase() {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      color VARCHAR(55) NOT NULL
-    );
-  `);
+  try {
+    await db.query("BEGIN");
 
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS day (
-      id SERIAL PRIMARY KEY,
-      title VARCHAR(100) NOT NULL,
-      date VARCHAR(55) NOT NULL,
-      id_user INTEGER REFERENCES users(id) ON DELETE CASCADE
-    );
-  `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        color VARCHAR(55) NOT NULL
+      );
+    `);
 
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS weeks (
-      id SERIAL PRIMARY KEY,
-      title VARCHAR(100) NOT NULL,
-      date VARCHAR(55) NOT NULL,
-      id_user INTEGER REFERENCES users(id) ON DELETE CASCADE
-    );
-  `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS day (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(100) NOT NULL,
+        date VARCHAR(55) NOT NULL,
+        id_user INTEGER REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
 
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS months (
-      id SERIAL PRIMARY KEY,
-      title VARCHAR(100) NOT NULL,
-      date VARCHAR(55) NOT NULL,
-      id_user INTEGER REFERENCES users(id) ON DELETE CASCADE
-    );
-  `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS weeks (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(100) NOT NULL,
+        date VARCHAR(55) NOT NULL,
+        id_user INTEGER REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
 
-  const userCount = await db.query("SELECT COUNT(*) FROM users");
-  if (parseInt(userCount.rows[0].count) === 0) {
-    const userResult = await db.query(
-      "INSERT INTO users (name, color) VALUES ('Filipe', 'blue') RETURNING id, name"
-    );
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS months (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(100) NOT NULL,
+        date VARCHAR(55) NOT NULL,
+        id_user INTEGER REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
 
-    const filipeId = userResult.rows[0].id;
+    const userCount = await db.query("SELECT COUNT(*) FROM users");
+    if (parseInt(userCount.rows[0].count) === 0) {
+      const userResult = await db.query(
+        "INSERT INTO users (name, color) VALUES ('Filipe', 'blue') RETURNING id, name"
+      );
 
-    await db.query(
-      "INSERT INTO day (title, date, id_user) VALUES ('Passeio do cão', '25/06/2026', $1), ('Fazer compras', '25/06/2026', $2)",
-      [filipeId]
-    );
+      const filipeId = userResult.rows[0].id;
 
-    await db.query(
-      "INSERT INTO months (title, date, id_user) VALUES ('Pagar Seguro carro', '24/06/2026', $1), ('Pagar imposto de selo', '22/06/2026', $2)",
-      [ filipeId]
-    );
+      await db.query(
+        "INSERT INTO day (title, date, id_user) VALUES ('Passeio do cão', '25/06/2026', $1), ('Fazer compras', '25/06/2026', $1)",
+        [filipeId]
+      );
 
-    await db.query(
-      "INSERT INTO weeks (title, date, id_user) VALUES ('ver impostos pagar', '26/06/2026', $1), ('ver comida de cão', '30/06/2026', $2)",
-      [ filipeId]
-    );
+      await db.query(
+        "INSERT INTO months (title, date, id_user) VALUES ('Pagar Seguro carro', '24/06/2026', $1), ('Pagar imposto de selo', '22/06/2026', $1)",
+        [filipeId]
+      );
 
-    console.log("Database initialized with default tables and data.");
+      await db.query(
+        "INSERT INTO weeks (title, date, id_user) VALUES ('ver impostos pagar', '26/06/2026', $1), ('ver comida de cão', '30/06/2026', $1)",
+        [filipeId]
+      );
+
+      console.log("Database initialized with default tables and data.");
+    }
+
+    await db.query("COMMIT");
+  } catch (error) {
+    await db.query("ROLLBACK");
+    throw error;
   }
 }
 
@@ -128,43 +145,47 @@ try {
   process.exit(1);
 }
 
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use(express.static("public"));
 
-let currentUserId = 1;
-let users = [];
-
-async function checkTasksDay() {
-  const resultDay = await db.query( 
-    'SELECT day.id ,title FROM day JOIN users ON users.id = id_user WHERE id_user = $1', 
-    [currentUserId]
-   );  
-  return resultDay.rows;
+async function checkTasks(tableName, userId) {
+  validateTable(tableName);
+  const result = await db.query(
+    `SELECT ${tableName}.id, title FROM ${tableName} JOIN users ON users.id = id_user WHERE id_user = $1`,
+    [userId]
+  );
+  return result.rows;
 }
 
-async function checkTasksWeek() {
-   const resultWeek = await db.query( 
-    'SELECT weeks.id ,title FROM weeks JOIN users ON users.id = id_user WHERE id_user = $1', 
-    [currentUserId] ); 
-  return resultWeek.rows;
+async function checkTasksDay(userId) {
+  return checkTasks('day', userId);
 }
 
-async function checkTasksMonths() {
-   const resultMonth = await db.query( 
-    'SELECT months.id ,title FROM months JOIN users ON users.id = id_user WHERE id_user = $1', 
-    [currentUserId] ); 
-  return resultMonth.rows;
+async function checkTasksWeek(userId) {
+  return checkTasks('weeks', userId);
 }
 
-async function getCurrentUsers() {
-  const result = await db.query("SELECT * FROM users");
-  users = result.rows;
-  const found = users.find((user) => user.id == currentUserId);
-  if (!found) {
-    currentUserId = users[0]?.id; // fall back to first user
-    return users[0];
+async function checkTasksMonths(userId) {
+  return checkTasks('months', userId);
+}
+
+async function getCurrentUsers(req, res) {
+  const usersResult = await db.query("SELECT * FROM users");
+  const users = usersResult.rows;
+  if (users.length === 0) {
+    return { users: [], currentUser: null };
   }
-  return found;
+
+  let userId = req.cookies.userId;
+  let found = users.find((user) => user.id == userId);
+
+  if (!found) {
+    found = users[0];
+    res.cookie('userId', found.id, { httpOnly: true, sameSite: 'lax' });
+  }
+
+  return { users, currentUser: found };
 }
 
 
@@ -175,27 +196,27 @@ function validateTable(name) {
   return name;
 }
 
- function addItemToDatabase(tableName, item, date, currentUserId) {
+ function addItemToDatabase(tableName, item, date, userId) {
       validateTable(tableName);
       return db.query(
         `INSERT INTO ${tableName} (title, date, id_user) VALUES ($1, $2, $3)`, 
-        [item, date, currentUserId]
+        [item, date, userId]
       );
     }
 
-  function deleteItemFromDatabase(tableName, id) {
+  function deleteItemFromDatabase(tableName, id, userId) {
       validateTable(tableName);
       return db.query(
-        `DELETE FROM ${tableName} WHERE id = $1`, 
-        [id]
+        `DELETE FROM ${tableName} WHERE id = $1 AND id_user = $2`, 
+        [id, userId]
       );
     } 
 
-  function updateItemInDatabase(tableName, item, date, id) {
+  function updateItemInDatabase(tableName, item, date, id, userId) {
       validateTable(tableName);
       return db.query(
-        `UPDATE ${tableName} SET title = $1, date = $2 WHERE id = $3`, 
-        [item, date, id]
+        `UPDATE ${tableName} SET title = $1, date = $2 WHERE id = $3 AND id_user = $4`, 
+        [item, date, id, userId]
       );
     }
 
@@ -205,7 +226,7 @@ function validateTable(name) {
         const month = String(currentDate.getMonth() + 1).padStart(2, '0');
         const day = String(currentDate.getDate()).padStart(2, '0');
 
-       return `${day}-${month}-${year}`;
+      return `${day}-${month}-${year}`;
     }
 
 
@@ -217,7 +238,7 @@ app.post("/user", async (req, res) => {
     if (selectedUser) {
       const parsed = parseInt(selectedUser, 10);
       if (!isNaN(parsed)) {
-        currentUserId = parsed;
+        res.cookie('userId', parsed, { httpOnly: true, sameSite: 'lax' });
       }
     }
     res.redirect("/");
@@ -227,10 +248,15 @@ app.post("/user", async (req, res) => {
 
 app.get("/", async (req, res) => {
   try {
-    const dayResult =  await checkTasksDay();
-    const weekResult = await checkTasksWeek();
-    const monthResult = await checkTasksMonths();
-    const currentUser = await getCurrentUsers();
+    const { users, currentUser } = await getCurrentUsers(req, res);
+    if (!currentUser) {
+      res.render("new.ejs", { error: null });
+      return;
+    }
+
+    const dayResult = await checkTasksDay(currentUser.id);
+    const weekResult = await checkTasksWeek(currentUser.id);
+    const monthResult = await checkTasksMonths(currentUser.id);
    
     console.log("Current User:", currentUser);
     console.log("Tasks for the Day:", dayResult);
@@ -263,20 +289,26 @@ app.post("/add", async (req, res) => {
 
   
   try {
-      let tableName = '';
-      let item = '';
+    const { currentUser } = await getCurrentUsers(req, res);
+    if (!currentUser) {
+      res.redirect("/new");
+      return;
+    }
+
+    let tableName = '';
+    let item = '';
     if (list === 'Day' && itemDay) {
       tableName = 'day';
       item = itemDay;
-      await addItemToDatabase(tableName, item, date, currentUserId);
+      await addItemToDatabase(tableName, item, date, currentUser.id);
     } else if (list === 'Week' && itemWeek) {
       tableName = 'weeks';
       item = itemWeek;
-      await addItemToDatabase(tableName, item, date, currentUserId);
+      await addItemToDatabase(tableName, item, date, currentUser.id);
     } else if (list === 'Month' && itemMonth) {
       tableName = 'months';
       item = itemMonth;
-      await addItemToDatabase(tableName, item, date, currentUserId);
+      await addItemToDatabase(tableName, item, date, currentUser.id);
     }else {
       res.status(400).send("Bad Request: No item provided for the selected list.");
       return;
@@ -306,6 +338,11 @@ app.post("/edit", async (req, res) => {
   const list = req.body.list;
 
   try {
+    const { currentUser } = await getCurrentUsers(req, res);
+    if (!currentUser) {
+      res.redirect("/new");
+      return;
+    }
 
     let tableName = '';
     let item = '';
@@ -315,17 +352,17 @@ app.post("/edit", async (req, res) => {
       tableName = 'day';
       item = updatedItemTitleDay;
       id = updatedItemIdDay;
-      await updateItemInDatabase(tableName, item, date, id);
+      await updateItemInDatabase(tableName, item, date, id, currentUser.id);
     } else if (list === 'Week' && updatedItemIdWeek) {
       tableName = 'weeks';
       item = updatedItemTitleWeek;  
       id = updatedItemIdWeek;
-      await updateItemInDatabase(tableName, item, date, id);
+      await updateItemInDatabase(tableName, item, date, id, currentUser.id);
     } else if (list === 'Month' && updatedItemIdMonth) {
       tableName = 'months';
       item = updatedItemTitleMonth;
       id = updatedItemIdMonth;
-      await updateItemInDatabase(tableName, item, date, id);
+      await updateItemInDatabase(tableName, item, date, id, currentUser.id);
     }
     res.redirect("/");
 
@@ -343,21 +380,27 @@ app.post("/delete", async (req, res) => {
   const list = req.body.list; // Get the list type (Day, Week, or Month)
 
   try {
+    const { currentUser } = await getCurrentUsers(req, res);
+    if (!currentUser) {
+      res.redirect("/new");
+      return;
+    }
+
     let tableName = '';
     let id = '';
 
     if (list === 'Day' && idDay) {
       tableName = 'day';
       id = idDay;
-      await deleteItemFromDatabase(tableName, id);
+      await deleteItemFromDatabase(tableName, id, currentUser.id);
     } else if (list === 'Week'  && idWeek) {
       tableName = 'weeks';
       id = idWeek;
-      await deleteItemFromDatabase(tableName, id);
+      await deleteItemFromDatabase(tableName, id, currentUser.id);
     } else if (list === 'Month' && idMonth) {
       tableName = 'months';
       id = idMonth;
-      await deleteItemFromDatabase(tableName, id);
+      await deleteItemFromDatabase(tableName, id, currentUser.id);
     }
     res.redirect("/");
   }catch (error) {
@@ -408,7 +451,7 @@ app.post("/new", async (req, res) => {
     console.log("New user:", newUser);
 
     // Seleciona automaticamente o utilizador recém-criado
-    currentUserId = newUser.id;
+    res.cookie('userId', newUser.id, { httpOnly: true, sameSite: 'lax' });
 
     res.redirect("/");
   } catch (error) {

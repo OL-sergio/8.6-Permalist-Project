@@ -3,7 +3,6 @@
   <div class="divider"></div>
   <div class="heading-users" id="heading" data-color="<%= color %>">
       <form class="tab-users" action="/user" method="post" >
-        <label for="user-select">User: </label>
         <select id="user-select" name="user" onchange="this.form.submit()">
         <% users.forEach(function(user) { %>
             <option value="<%= user.id %>" <%= user.id == currentUser.id ? "selected" : "" %>>

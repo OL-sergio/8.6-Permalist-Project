@@ -1,6 +1,32 @@
-# Permalist
+<div align="center">
 
-A multi-user to-do list web app that organises tasks into three time horizons: **Day**, **Week**, and **Month**. Each user gets their own colour-coded list, and all data is persisted in a PostgreSQL database.
+# 📋 Permalist
+
+A multi-user to-do list web app that organises tasks into three time horizons: **Day**, **Week**, and **Month**.  
+Each user gets their own colour-coded list, and all data is persisted in a PostgreSQL database.
+
+🔗 **[Live Demo](https://your-app.onrender.com)** <!-- replace with your Render URL -->
+
+</div>
+
+---
+
+## Preview
+
+> _Add a screenshot of the app here once deployed — replace the path below with your actual image._
+
+```
+![App screenshot](public/assets/screenshot.png)
+```
+
+---
+
+## Prerequisites
+
+Before running locally, make sure you have:
+
+- [Node.js](https://nodejs.org/) v18 or higher
+- [PostgreSQL](https://www.postgresql.org/) v14 or higher
 
 ---
 

@@ -5,7 +5,7 @@
 A multi-user to-do list web app that organises tasks into three time horizons: **Day**, **Week**, and **Month**.  
 Each user gets their own colour-coded list, and all data is persisted in a PostgreSQL database.
 
-🔗 **[Live Demo](https://your-app.onrender.com)** <!-- replace with your Render URL -->
+🔗 **[Live Demo](https://eight-6-permalist-project-k6by.onrender.com/)** <!-- replace with your Render URL -->
 
 </div>
 
